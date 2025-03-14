@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot name="qube" xmlns:xacro="http://www.ros.org/wiki/xacro">
-  <xacro:include filename="$(find qube_description)/urdf/qube.macro.xacro"/>
-  <xacro:include filename="$(find qube_driver)/ros2_control/qube_driver.ros2_control.xacro"/>
+  <xacro:include filename="package://qube_description/urdf/qube.macro.xacro"/>
+  <xacro:include filename="package://qube_driver/ros2_control/qube_driver.ros2_control.xacro"/>
   <xacro:arg baud_rate/>
   <xacro:arg device/>
   <xacro:arg simulation/>
@@ -12,5 +12,5 @@
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
   <xacro:qube prefix=""/>
-  <xacro:qube_driver_ros2_control prefix="" name="qube_driver" baud_rate="$(arg baud_rate)"/>
+  <xacro:qube_driver_ros2_control prefix="" name="qube_driver" baud_rate="${baud_rate}"/>
 </robot>
