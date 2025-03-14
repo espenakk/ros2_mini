@@ -22,7 +22,16 @@ def generate_launch_description():
         output='screen',
         parameters=[{'robot_description': robot_description_content}] # adds a URDF to the robot description
     )
-   
+
+    #TODO We probably need to remove this, only added cause we were missing a joint_state_publisher
+    # Add joint_state_publisher to provide joint states when not from hardware
+    joint_state_publisher = Node(
+        package='joint_state_publisher',
+        executable='joint_state_publisher',
+        name='joint_state_publisher',
+        output='screen',
+    )
+    
     # Include qube_driver.launch.py from the qube_driver package
     qube_driver_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -32,6 +41,7 @@ def generate_launch_description():
 
     return LaunchDescription([
       node_robot_state_publisher,
+      joint_state_publisher,
       rviz,
       qube_driver_launch
       ])
