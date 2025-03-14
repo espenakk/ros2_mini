@@ -1,47 +1,71 @@
-from launch import LaunchDescription
 from launch_ros.actions import Node
-from ament_index_python.packages import get_package_share_directory
-import os
-import xacro
-from launch.actions import IncludeLaunchDescription
+from launch_ros.substitutions import FindPackageShare
+from launch_ros.parameter_descriptions import ParameterValue
+from launch import LaunchDescription
+from launch.conditions import IfCondition
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.substitutions import LaunchConfiguration, TextSubstitution, PathJoinSubstitution, Command
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
+
 def generate_launch_description():
+    # Declare parameters
+    baud_rate_arg = DeclareLaunchArgument('baud_rate', default_value=TextSubstitution(text='115200'),
+        description='Baud rate for communication with qube device')
+    device_arg = DeclareLaunchArgument('device', default_value=TextSubstitution(text='/dev/ttyUSB0'),
+        description='Path to device (/dev/ttyUSB0/)')
+    simulation_arg = DeclareLaunchArgument('simulation', default_value=TextSubstitution(text='false'),
+        description='Sets the system in simulation mode if TRUE')
+    
+    # Set up xacro file and robot description
+    robot_description_content = ParameterValue(Command(['xacro ',PathJoinSubstitution(
+        [FindPackageShare('qube_bringup'),'urdf','controlled_qube.urdf.xacro']),
+            ' ', 'baud_rate:=', LaunchConfiguration('baud_rate'),
+            ' ', 'device:=', LaunchConfiguration('device'),
+            ' ', 'simulation:=', LaunchConfiguration('simulation')]),
+            value_type=str
+            )
 
-    rviz = Node(
-        package='rviz2',
-        executable='rviz2',
-        arguments=['-d', [os.path.join(get_package_share_directory('qube_bringup'), 'config', 'rviz_config.rviz')]]
-    )
-
-    xacro_file = os.path.join(get_package_share_directory('qube_bringup'),'urdf','controlled_qube.urdf.xacro')
-    robot_description_content = xacro.process_file(xacro_file).toxml()
+    # Robot state publisher
     node_robot_state_publisher = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
         output='screen',
         parameters=[{'robot_description': robot_description_content}] # adds a URDF to the robot description
-    )
+        )
 
-    #TODO We probably need to remove this, only added cause we were missing a joint_state_publisher
-    # Add joint_state_publisher to provide joint states when not from hardware
+    # Rviz
+    rviz = Node(
+        package='rviz2',
+        executable='rviz2',
+        arguments=['-d',  PathJoinSubstitution([FindPackageShare('qube_bringup'),'config','rviz_config.rviz'])]
+        )
+
+    # Include qube_driver.launch.py from the qube_driver package
+    qube_driver_launch = IncludeLaunchDescription(PythonLaunchDescriptionSource(PathJoinSubstitution([
+        FindPackageShare('qube_driver'),'launch','qube_driver.launch.py']))
+        )
+
+    #TODO This needs to be switched to a joint state simulator
     joint_state_publisher = Node(
         package='joint_state_publisher',
         executable='joint_state_publisher',
         name='joint_state_publisher',
         output='screen',
-    )
-    
-    # Include qube_driver.launch.py from the qube_driver package
-    qube_driver_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(get_package_share_directory('qube_driver'), 'launch', 'qube_driver.launch.py')
+        condition=IfCondition(LaunchConfiguration('simulation'))
         )
-    )
-
+    
     return LaunchDescription([
-      node_robot_state_publisher,
-      joint_state_publisher,
-      rviz,
-      qube_driver_launch
+        # Launch arguments
+        baud_rate_arg,
+        device_arg,
+        simulation_arg,
+
+        # Core nodes
+        node_robot_state_publisher,
+        joint_state_publisher,
+        rviz,
+
+        # Driver launch
+        qube_driver_launch
       ])
