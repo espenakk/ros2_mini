@@ -10,41 +10,42 @@ using namespace std::chrono_literals;
 class pidController
 {
 public:
-    //Variabler
-    double p;               //P-ledd
-    double i;               //I-ledd
-    double d;               //D-ledd
-    double reference;       //Referanseverdi
-    double voltage;         //Utgang
+    // Variabler
+    double kp;        // P-ledd
+    double ki;        // I-ledd
+    double kd;        // D-ledd
+    double reference; // Referanseverdi
+    double voltage;   // Utgang
 
-    pidController(double p_val, double i_val, double d_val)
+    pidController(double kp_val, double ki_val, double kd_val)
     {
-        p = p_val;
-        i = i_val;
-        d = d_val;
+        kp = kp_val;
+        ki = ki_val;
+        kd = kd_val;
         reference = 0.0;
         voltage = 0.0;
         previousError = 0.0;
         sumError = 0.0;
     }
-    //Henter spenning
+    // Henter spenning
     double getVoltage()
     {
         return voltage;
     }
 
-    //Oppdaterer voltage
+    // Oppdaterer voltage
     void update(double currentMeasurement)
     {
-        double error = reference - currentMeasurement;  //Beregner feil
-        sumError += error;  //Sum av tidligere feil
-        double derivative = error - previousError;  //Endring i feil
-        voltage = (p * error) + (i * sumError) + (d * derivative);  //PID-regulator
-        previousError = error;  //Lag ny forrige feil
+        double error = reference - currentMeasurement;                // Beregner feil
+        sumError += error;                                            // Sum av tidligere feil
+        double derivative = error - previousError;                    // Endring i feil
+        voltage = (kp * error) + (ki * sumError) + (kd * derivative); // PID-regulator
+        previousError = error;                                        // Lag ny forrige feil
     }
+
 private:
-    double previousError;   //Forrige feil (D)
-    double sumError;        //Sum av feil (I)
+    double previousError; // Forrige feil (D)
+    double sumError;      // Sum av feil (I)
 };
 
 class PIDControllerNode : public rclcpp::Node
@@ -52,11 +53,11 @@ class PIDControllerNode : public rclcpp::Node
 public:
     PIDControllerNode() : Node("pid_controller_node"), pid_(5.0, 0.001, 0.5)
     {
-        //Publisher som sender utgangsignal fra pid = voltage
+        // Publisher som sender utgangsignal fra pid = voltage
         publish_voltage_ = this->create_publisher<std_msgs::msg::Float64>("voltage", 10);
 
-        //Callback-funksjon som lytter på den innkommende målingen og oppdaterer PID-kontrolleren
-        auto measurement_listener = [this](std_msgs::msg::Float64::UniquePtr msg) -> void 
+        // Callback-funksjon som lytter på den innkommende målingen og oppdaterer PID-kontrolleren
+        auto measurement_listener = [this](std_msgs::msg::Float64::UniquePtr msg) -> void
         {
             auto message_fb = msg->data;
             pid_.update(message_fb);
@@ -66,43 +67,43 @@ public:
             this->publish_voltage_->publish(message_voltage);
         };
 
-        //Subscriber som lytter på målt vinkel (angle)
+        // Subscriber som lytter på målt vinkel (angle)
         measured_angle_ = this->create_subscription<std_msgs::msg::Float64>("angle", 10, measurement_listener);
 
-        //Deklarer parameter
+        // Deklarer parameter
         this->declare_parameter("kp", 5.0);
         this->declare_parameter("ki", 0.001);
         this->declare_parameter("kd", 0.5);
         this->declare_parameter("ref", 0.0);
 
-        //Linker parameter og variabler
-        this->get_parameter("kp", p_);
-        this->get_parameter("ki", i_);
-        this->get_parameter("kd", d_);
-        this->get_parameter("ref", ref_);        
+        // Linker parameter og variabler
+        this->get_parameter("kp", kp_);
+        this->get_parameter("ki", ki_);
+        this->get_parameter("kd", kd_);
+        this->get_parameter("ref", ref_);
 
-        //Setter variabler til verdier fra PID-kontroller
-        pid_.p = p_;
-        pid_.i = i_;
-        pid_.d = d_;
+        // Setter variabler til verdier fra PID-kontroller
+        pid_.kp = kp_;
+        pid_.ki = ki_;
+        pid_.kd = kd_;
         pid_.reference = ref_;
 
-        //Fortell noden at parameterne er endret
+        // Fortell noden at parameterne er endret
         parameter_callback = this->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter> &parameters)
-            {
+                                                                  {
                 for (const auto &param : parameters)
                 {
                     if (param.get_name() == "kp")
                     {
-                        pid_.p = param.as_double();
+                        pid_.kp = param.as_double();
                     }
                     else if (param.get_name() == "ki")
                     {
-                        pid_.i = param.as_double();
+                        pid_.ki = param.as_double();
                     }
                     else if (param.get_name() == "kd")
                     {
-                        pid_.d = param.as_double();
+                        pid_.kd = param.as_double();
                     }
                     else if (param.get_name() == "ref")
                     {
@@ -111,9 +112,7 @@ public:
                 }
                 rcl_interfaces::msg::SetParametersResult result;
                 result.set__successful(true);
-                return result;
-            }
-        );
+                return result; });
         // Create service for setting reference
         service_ = this->create_service<pid_controller_msgs::srv::SetReference>(
             "pid_controller_node/set_reference", std::bind(&PIDControllerNode::setReference, this, std::placeholders::_1, std::placeholders::_2));
@@ -121,29 +120,29 @@ public:
     }
 
 private:
-    pidController pid_;                      // Instans av PID-kontrolleren
+    pidController pid_; // Instans av PID-kontrolleren
     rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publish_voltage_; // Publisher for voltage
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publish_voltage_;   // Publisher for voltage
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr measured_angle_; // Subscriber for measured angle
-    double p_;               
-    double i_;               
-    double d_;               
+    double kp_;
+    double ki_;
+    double kd_;
     double ref_;
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameter_callback;
 
     // SetReference service callback
     void setReference(const std::shared_ptr<pid_controller_msgs::srv::SetReference::Request> request,
-        std::shared_ptr<pid_controller_msgs::srv::SetReference::Response> response)
+                      std::shared_ptr<pid_controller_msgs::srv::SetReference::Response> response)
+    {
+        if ((-M_PI) < (request->request.data) && (request->request.data) < (M_PI))
         {
-            if ((-M_PI)<(request->request.data) && (request->request.data)<(M_PI))
-            {
             pid_.reference = request->request.data;
             response->success.data = true;
-            }
-            else 
+        }
+        else
             response->success.data = false;
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Incoming request: [%f]", request->request.data);
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "sending back response: [%d]", response->success.data);
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Incoming request: [%f]", request->request.data);
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "sending back response: [%d]", response->success.data);
     }
     // Service for setting reference
     rclcpp::Service<pid_controller_msgs::srv::SetReference>::SharedPtr service_;
