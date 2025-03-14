@@ -31,5 +31,5 @@ def generate_launch_description():
    return LaunchDescription([
       rviz,
       node_robot_state_publisher,
-      #gui
+      gui
       ])
