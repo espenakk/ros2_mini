@@ -4,7 +4,8 @@
 #include <vector>
 
 #include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/float64.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
 
 using namespace std::chrono_literals;
 
@@ -27,8 +28,8 @@ class JointSimulator {
 class JointSimulatorNode : public rclcpp::Node {
  public:
   JointSimulatorNode() : Node("joint_simulator") {
-    publish_angle();
-    input_voltage();
+    publish_joint_states();
+    input_command();
     set_parameters();
 
     RCLCPP_INFO(this->get_logger(), "Initial Noise parameter value: %f", jointSimulator.noise);
@@ -65,30 +66,32 @@ class JointSimulatorNode : public rclcpp::Node {
     });
   }
 
-  void publish_angle() {
-    publisher_ = this->create_publisher<std_msgs::msg::Float64>("angle", 10);
+  void publish_joint_states() {
+    publisher_ = this->create_publisher<sensor_msgs::msg::JointState>("/joint_states", 10);
     auto timer_callback = [this]() -> void {
       jointSimulator.update();
-      auto message = std_msgs::msg::Float64();
-      message.data = jointSimulator.angle;
-      RCLCPP_INFO(this->get_logger(), "Publishing current angle: '%f'", message.data);
+      auto message = sensor_msgs::msg::JointState();
+      message.name.push_back("qube_joint");
+      message.position.push_back(jointSimulator.angle);
+      message.velocity.push_back(jointSimulator.angular_velocity);
       this->publisher_->publish(message);
     };
     timer_ = this->create_wall_timer(500ms, timer_callback);
   }
 
-  void input_voltage() {
-    auto voltage_listener = [this](std_msgs::msg::Float64::UniquePtr msg) -> void {
-      RCLCPP_INFO(this->get_logger(), "I received: '%f'", msg->data);
-      jointSimulator.voltage = msg->data;
+  void input_command() {
+    auto command_listener = [this](std_msgs::msg::Float64MultiArray::UniquePtr msg) -> void {
+      RCLCPP_INFO(this->get_logger(), "I received voltage: '%f'", msg->data[0]);
+      jointSimulator.voltage = msg->data[0];
     };
-    subscription_ = this->create_subscription<std_msgs::msg::Float64>("voltage", 10, voltage_listener);
+    subscription_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
+        "/velocity_controller/command", 10, command_listener);
   }
 
   JointSimulator jointSimulator;
   rclcpp::TimerBase::SharedPtr timer_;
-  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_;
-  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr subscription_;
+  rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr publisher_;
+  rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameter_callback;
 };
 

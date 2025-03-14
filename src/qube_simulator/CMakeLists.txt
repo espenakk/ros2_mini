@@ -8,9 +8,10 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 add_executable(qube_simulator_node src/qube_simulator_node.cpp)
-ament_target_dependencies(qube_simulator_node rclcpp std_msgs)
+ament_target_dependencies(qube_simulator_node rclcpp std_msgs sensor_msgs)
 
 target_include_directories(qube_simulator_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
