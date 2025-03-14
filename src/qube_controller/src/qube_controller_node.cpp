@@ -1,123 +1,138 @@
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+
+#include "qube_controller_msgs/srv/set_reference.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "sensor_msgs/msg/joint_state.hpp"
-#include "std_msgs/msg/float64_multi_array.hpp"
-#include <vector>
+#include "std_msgs/msg/float64.hpp"
 
-class QubeControllerNode : public rclcpp::Node
-{
-public:
-  QubeControllerNode() : Node("qube_controller")
-  {
-    // Initialize PID parameters
-    kp_ = this->declare_parameter<double>("kp", 1.0);
-    ki_ = this->declare_parameter<double>("ki", 0.1);
-    kd_ = this->declare_parameter<double>("kd", 0.05);
-    
-    integral_ = 0.0;
-    prev_error_ = 0.0;
-    prev_time_ = this->now();
-    setpoint_ = this->declare_parameter<double>("setpoint", 0.0);
-    
-    // Create subscriber for joint states
-    joint_states_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
-      "/joint_states", 10, 
-      std::bind(&QubeControllerNode::joint_states_callback, this, std::placeholders::_1));
-    
-    // Create publisher for velocity command
-    velocity_pub_ = this->create_publisher<std_msgs::msg::Float64MultiArray>(
-      "/velocity_controller/command", 10);
-    
-    RCLCPP_INFO(this->get_logger(), "Qube Controller Node initialized");
+using namespace std::chrono_literals;
+
+class pidController {
+ public:
+  // Variabler
+  double kp;         // P-ledd
+  double ki;         // I-ledd
+  double kd;         // D-ledd
+  double reference;  // Referanseverdi
+  double voltage;    // Utgang
+
+  pidController(double kp_val, double ki_val, double kd_val) {
+    kp = kp_val;
+    ki = ki_val;
+    kd = kd_val;
+    reference = 0.0;
+    voltage = 0.0;
+    previousError = 0.0;
+    sumError = 0.0;
+  }
+  // Henter spenning
+  double getVoltage() { return voltage; }
+
+  // Oppdaterer voltage
+  void update(double currentMeasurement) {
+    double error = reference - currentMeasurement;                 // Beregner feil
+    sumError += error;                                             // Sum av tidligere feil
+    double derivative = error - previousError;                     // Endring i feil
+    voltage = (kp * error) + (ki * sumError) + (kd * derivative);  // PID-regulator
+    previousError = error;                                         // Lag ny forrige feil
   }
 
-private:
-  // PID controller parameters
-  double kp_, ki_, kd_;
-  double integral_, prev_error_;
-  double setpoint_;
-  rclcpp::Time prev_time_;
-  
-  // ROS2 communication
-  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_states_sub_;
-  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr velocity_pub_;
-  
-  void joint_states_callback(const sensor_msgs::msg::JointState::SharedPtr msg)
-  {
-    if (msg->position.empty() || msg->velocity.empty()) {
-      RCLCPP_WARN(this->get_logger(), "Received empty joint_states message");
-      return;
-    }
-    
-    // Extract position and velocity
-    double position = msg->position[0];
-    double velocity = msg->velocity[0];
-    
-    RCLCPP_DEBUG(this->get_logger(), "Received position: %f, velocity: %f", position, velocity);
-    
-    // Calculate control value using PID
-    double control_value = calculate_pid(position);
-    
-    // Publish velocity command
-    publish_velocity_command(control_value);
-  }
-  
-  double calculate_pid(double current_position)
-  {
-    auto current_time = this->now();
-    double dt = (current_time - prev_time_).seconds();
-    prev_time_ = current_time;
-    
-    // Calculate error
-    double error = setpoint_ - current_position;
-    
-    // Proportional term
-    double p_term = kp_ * error;
-    
-    // Integral term
-    integral_ += error * dt;
-    double i_term = ki_ * integral_;
-    
-    // Derivative term
-    double derivative = dt > 0 ? (error - prev_error_) / dt : 0.0;
-    double d_term = kd_ * derivative;
-    
-    // Save current error for next iteration
-    prev_error_ = error;
-    
-    // Sum all terms
-    double control_value = p_term + i_term + d_term;
-    
-    RCLCPP_DEBUG(this->get_logger(), "PID output: %f (P: %f, I: %f, D: %f)", 
-                control_value, p_term, i_term, d_term);
-    
-    return control_value;
-  }
-  
-  void publish_velocity_command(double control_value)
-  {
-    auto command_msg = std_msgs::msg::Float64MultiArray();
-    
-    // Set up the message structure
-    command_msg.layout.dim.push_back(std_msgs::msg::MultiArrayDimension());
-    command_msg.layout.dim[0].size = 1;
-    command_msg.layout.dim[0].stride = 1;
-    command_msg.layout.dim[0].label = "velocity";
-    
-    // Set the data - adding the control value to the array
-    command_msg.data.push_back(control_value);
-    
-    // Publish the message
-    velocity_pub_->publish(command_msg);
-    
-    RCLCPP_DEBUG(this->get_logger(), "Published velocity command: %f", control_value);
-  }
+ private:
+  double previousError;  // Forrige feil (D)
+  double sumError;       // Sum av feil (I)
 };
 
-int main(int argc, char * argv[])
-{
+class PIDControllerNode : public rclcpp::Node {
+ public:
+  PIDControllerNode() : Node("qube_controller_node"), pid_(5.0, 0.001, 0.5) {
+    // Publisher som sender utgangsignal fra pid = voltage
+    publish_voltage_ = this->create_publisher<std_msgs::msg::Float64>("voltage", 10);
+
+    // Callback-funksjon som lytter på den innkommende målingen og oppdaterer PID-kontrolleren
+    auto measurement_listener = [this](std_msgs::msg::Float64::UniquePtr msg) -> void {
+      auto message_fb = msg->data;
+      pid_.update(message_fb);
+
+      auto message_voltage = std_msgs::msg::Float64();
+      message_voltage.data = pid_.getVoltage();
+      this->publish_voltage_->publish(message_voltage);
+    };
+
+    // Subscriber som lytter på målt vinkel (angle)
+    measured_angle_ = this->create_subscription<std_msgs::msg::Float64>("angle", 10, measurement_listener);
+
+    // Deklarer parameter
+    this->declare_parameter("kp", 5.0);
+    this->declare_parameter("ki", 0.001);
+    this->declare_parameter("kd", 0.5);
+    this->declare_parameter("ref", 0.0);
+
+    // Linker parameter og variabler
+    this->get_parameter("kp", kp_);
+    this->get_parameter("ki", ki_);
+    this->get_parameter("kd", kd_);
+    this->get_parameter("ref", ref_);
+
+    // Setter variabler til verdier fra PID-kontroller
+    pid_.kp = kp_;
+    pid_.ki = ki_;
+    pid_.kd = kd_;
+    pid_.reference = ref_;
+
+    // Fortell noden at parameterne er endret
+    parameter_callback = this->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter> &parameters) {
+      for (const auto &param : parameters) {
+        if (param.get_name() == "kp") {
+          pid_.kp = param.as_double();
+        } else if (param.get_name() == "ki") {
+          pid_.ki = param.as_double();
+        } else if (param.get_name() == "kd") {
+          pid_.kd = param.as_double();
+        } else if (param.get_name() == "ref") {
+          pid_.reference = param.as_double();
+        }
+      }
+      rcl_interfaces::msg::SetParametersResult result;
+      result.set__successful(true);
+      return result;
+    });
+    // Create service for setting reference
+    service_ = this->create_service<qube_controller_msgs::srv::SetReference>(
+        "qube_controller_node/set_reference",
+        std::bind(&PIDControllerNode::setReference, this, std::placeholders::_1, std::placeholders::_2));
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to set reference");
+  }
+
+ private:
+  pidController pid_;  // Instans av PID-kontrolleren
+  rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publish_voltage_;    // Publisher for voltage
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr measured_angle_;  // Subscriber for measured angle
+  double kp_;
+  double ki_;
+  double kd_;
+  double ref_;
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameter_callback;
+
+  // SetReference service callback
+  void setReference(const std::shared_ptr<qube_controller_msgs::srv::SetReference::Request> request,
+                    std::shared_ptr<qube_controller_msgs::srv::SetReference::Response> response) {
+    if ((-M_PI) < (request->request.data) && (request->request.data) < (M_PI)) {
+      pid_.reference = request->request.data;
+      response->success.data = true;
+    } else
+      response->success.data = false;
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Incoming request: [%f]", request->request.data);
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "sending back response: [%d]", response->success.data);
+  }
+  // Service for setting reference
+  rclcpp::Service<qube_controller_msgs::srv::SetReference>::SharedPtr service_;
+};
+
+int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<QubeControllerNode>();
-  rclcpp::spin(node);
+  rclcpp::spin(std::make_shared<PIDControllerNode>());
   rclcpp::shutdown();
   return 0;
 }
