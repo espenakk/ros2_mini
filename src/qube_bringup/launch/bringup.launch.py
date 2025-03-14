@@ -27,14 +27,14 @@ def generate_launch_description():
             )
 
     # Robot state publisher
-    node_robot_state_publisher = Node(
+    robot_state_publisher = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
         output='screen',
         parameters=[{'robot_description': robot_description_content}] # adds a URDF to the robot description
         )
 
-    # Rviz
+    # Rviz with config
     rviz = Node(
         package='rviz2',
         executable='rviz2',
@@ -46,11 +46,19 @@ def generate_launch_description():
         FindPackageShare('qube_driver'),'launch','qube_driver.launch.py']))
         )
 
-    #TODO This needs to be switched to a joint state simulator
-    joint_state_publisher = Node(
-        package='joint_state_publisher',
-        executable='joint_state_publisher',
-        name='joint_state_publisher',
+    # PID controller for the qube
+    qube_controller = Node(
+        package='qube_controller',
+        executable='qube_controller_node',
+        name='qube_controller',
+        output='screen',
+        )
+
+    # Qube simulator
+    qube_simulator = Node(
+        package='qube_simulator',
+        executable='qube_simulator_node',
+        name='qube_simulator',
         output='screen',
         condition=IfCondition(LaunchConfiguration('simulation'))
         )
@@ -61,10 +69,11 @@ def generate_launch_description():
         device_arg,
         simulation_arg,
 
-        # Core nodes
-        node_robot_state_publisher,
-        joint_state_publisher,
+        # Nodes
+        robot_state_publisher,
         rviz,
+        qube_controller,
+        qube_simulator,
 
         # Driver launch
         qube_driver_launch

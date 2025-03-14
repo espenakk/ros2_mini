@@ -20,7 +20,7 @@ def generate_launch_description():
         parameters=[{'robot_description': robot_description_content}]
     )
 
-    # Rviz
+    # Rviz with config
     rviz = Node(
         package='rviz2',
         executable='rviz2',
