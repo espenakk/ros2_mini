@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
 #include "std_msgs/msg/float64.hpp"
 
 using namespace std::chrono_literals;
@@ -38,7 +39,7 @@ class JointSimulatorNode : public rclcpp::Node {
 
  private:
   void set_parameters() {
-    this->declare_parameter<double>("noise", 0.5);
+    this->declare_parameter<double>("noise", 0.1);
     this->declare_parameter<double>("K", 230.0);
     this->declare_parameter<double>("T", 0.15);
 
@@ -66,12 +67,16 @@ class JointSimulatorNode : public rclcpp::Node {
   }
 
   void publish_angle() {
-    publisher_ = this->create_publisher<std_msgs::msg::Float64>("angle", 10);
+    publisher_ = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
     auto timer_callback = [this]() -> void {
       jointSimulator.update();
-      auto message = std_msgs::msg::Float64();
-      message.data = jointSimulator.angle;
-      RCLCPP_INFO(this->get_logger(), "Publishing current angle: '%f'", message.data);
+      auto message = sensor_msgs::msg::JointState();
+      message.header.stamp = this->now();
+      message.name = {"stator_joint", "angle", "indicator"};
+      message.position = {0.0, jointSimulator.angle, 0.0};
+      message.velocity = {0.0, jointSimulator.angular_velocity, 0.0};
+      message.effort = {0.0, 0.0, 0.0};
+      // RCLCPP_INFO(this->get_logger(), "Publishing joint states: angle='%f'", jointSimulator.angle * 180 / 3.1415);
       this->publisher_->publish(message);
     };
     timer_ = this->create_wall_timer(500ms, timer_callback);
@@ -79,7 +84,7 @@ class JointSimulatorNode : public rclcpp::Node {
 
   void input_voltage() {
     auto voltage_listener = [this](std_msgs::msg::Float64::UniquePtr msg) -> void {
-      RCLCPP_INFO(this->get_logger(), "I received: '%f'", msg->data);
+      // RCLCPP_INFO(this->get_logger(), "I received: '%f'", msg->data);
       jointSimulator.voltage = msg->data;
     };
     subscription_ = this->create_subscription<std_msgs::msg::Float64>("voltage", 10, voltage_listener);
@@ -87,7 +92,7 @@ class JointSimulatorNode : public rclcpp::Node {
 
   JointSimulator jointSimulator;
   rclcpp::TimerBase::SharedPtr timer_;
-  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr publisher_;
   rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr subscription_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameter_callback;
 };

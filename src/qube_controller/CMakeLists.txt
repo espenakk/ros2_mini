@@ -8,10 +8,11 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(qube_controller_msgs REQUIRED)
 
 add_executable(qube_controller_node src/qube_controller_node.cpp)
-ament_target_dependencies(qube_controller_node rclcpp std_msgs qube_controller_msgs)
+ament_target_dependencies(qube_controller_node rclcpp std_msgs sensor_msgs qube_controller_msgs)
 
 add_executable(reference_input_node src/reference_input_node.cpp)
 ament_target_dependencies(reference_input_node rclcpp std_msgs qube_controller_msgs)
