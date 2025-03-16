@@ -53,15 +53,6 @@ def generate_launch_description():
         name='qube_controller',
         output='screen',
         )
-
-    # Qube simulator
-    qube_simulator = Node(
-        package='qube_simulator',
-        executable='qube_simulator_node',
-        name='qube_simulator',
-        output='screen',
-        condition=IfCondition(LaunchConfiguration('simulation'))
-        )
     
     return LaunchDescription([
         # Launch arguments
@@ -73,7 +64,6 @@ def generate_launch_description():
         robot_state_publisher,
         rviz,
         qube_controller,
-        # qube_simulator,
 
         # Driver launch
         qube_driver_launch
