@@ -73,7 +73,7 @@ def generate_launch_description():
         robot_state_publisher,
         rviz,
         qube_controller,
-        qube_simulator,
+        # qube_simulator,
 
         # Driver launch
         qube_driver_launch

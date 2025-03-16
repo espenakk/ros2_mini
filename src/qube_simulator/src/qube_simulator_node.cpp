@@ -72,9 +72,9 @@ class JointSimulatorNode : public rclcpp::Node {
       jointSimulator.update();
       auto message = sensor_msgs::msg::JointState();
       message.header.stamp = this->now();
-      message.name = {"stator_joint", "angle", "indicator"};
-      message.position = {0.0, jointSimulator.angle, 0.0};
-      message.velocity = {0.0, jointSimulator.angular_velocity, 0.0};
+      message.name = {"motor_joint"};
+      message.position = {jointSimulator.angle};
+      message.velocity = {jointSimulator.angular_velocity};
       message.effort = {0.0, 0.0, 0.0};
       // RCLCPP_INFO(this->get_logger(), "Publishing joint states: angle='%f'", jointSimulator.angle * 180 / 3.1415);
       this->publisher_->publish(message);

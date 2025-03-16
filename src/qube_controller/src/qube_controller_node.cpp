@@ -6,6 +6,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/float64.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
 
 
 using namespace std::chrono_literals;
@@ -49,19 +50,17 @@ class PIDControllerNode : public rclcpp::Node {
  public:
   PIDControllerNode() : Node("qube_controller_node"), pid_(5.0, 0.001, 0.5) {
     // Publisher som sender utgangsignal fra pid = voltage
-    publish_voltage_ = this->create_publisher<std_msgs::msg::Float64>("voltage", 10);
+    publish_voltage_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("/velocity_controller/commands", 10);
 
     // Callback-funksjon som lytter på den innkommende målingen og oppdaterer PID-kontrolleren
     auto measurement_listener = [this](sensor_msgs::msg::JointState::UniquePtr msg) -> void {
-      if (msg->position.size() >= 2) {
-        double currentMeasurement = msg->position[1];
-        pid_.update(currentMeasurement);
-        // RCLCPP_INFO(this->get_logger(), "I recievied this angle: angle='%f'", currentMeasurement * 180 / 3.1415);
+      double currentMeasurement = msg->position[0];
+      pid_.update(currentMeasurement);
+      // RCLCPP_INFO(this->get_logger(), "I recievied this angle: angle='%f'", currentMeasurement * 180 / 3.1415);
 
-        auto message_voltage = std_msgs::msg::Float64();
-        message_voltage.data = pid_.getVoltage();
-        this->publish_voltage_->publish(message_voltage);
-      }
+      auto message_voltage = std_msgs::msg::Float64MultiArray();
+      message_voltage.data.push_back(pid_.getVoltage());
+      this->publish_voltage_->publish(message_voltage);
     };
 
     // Subscriber som lytter på målt vinkel (angle)
@@ -112,7 +111,7 @@ class PIDControllerNode : public rclcpp::Node {
  private:
   pidController pid_;  // Instans av PID-kontrolleren
   rclcpp::TimerBase::SharedPtr timer_;
-  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publish_voltage_;    // Publisher for voltage
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publish_voltage_;    // Publisher for voltage
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr measured_angle_;  // Subscriber for measured angle
   double kp_;
   double ki_;
