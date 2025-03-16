@@ -1,3 +1,43 @@
+/**
+ * @class PIDControllerNode
+ * @brief A ROS2 node for controlling a system using a PID controller.
+ *
+ * This node subscribes to joint state measurements, applies a PID control algorithm,
+ * and publishes the control voltage to a specified topic. It also provides a service
+ * to set the reference value for the PID controller.
+ *
+ * @details
+ * The node initializes with default PID parameters (kp, ki, kd) and a reference value.
+ * These parameters can be dynamically updated through ROS2 parameter server.
+ * The node subscribes to the "joint_states" topic to receive the current angle measurement,
+ * computes the control voltage using the PID controller, and publishes the voltage to
+ * the "/velocity_controller/commands" topic.
+ *
+ * The node also provides a service "qube_controller_node/set_reference" to set the reference
+ * value for the PID controller. The reference value must be within the range [-π, π].
+ *
+ * @param kp_ Proportional gain of the PID controller.
+ * @param ki_ Integral gain of the PID controller.
+ * @param kd_ Derivative gain of the PID controller.
+ * @param ref_ Reference value for the PID controller.
+ *
+ * @param pid_ Instance of the PID controller.
+ * @param timer_ Timer for periodic tasks (not used in this implementation).
+ * @param publish_voltage_ Publisher for the control voltage.
+ * @param measured_angle_ Subscription for the joint state measurements.
+ * @param parameter_callback Callback for dynamic parameter updates.
+ * @param service_ Service for setting the reference value.
+ *
+ * @fn PIDControllerNode()
+ * @brief Constructor for the PIDControllerNode class.
+ *
+ * @fn setReference(const std::shared_ptr<qube_controller_msgs::srv::SetReference::Request> request,
+ *                  std::shared_ptr<qube_controller_msgs::srv::SetReference::Response> response)
+ * @brief Callback function for the "set_reference" service.
+ * @param request The service request containing the new reference value.
+ * @param response The service response indicating success or failure.
+ */
+
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -11,48 +51,45 @@
 
 using namespace std::chrono_literals;
 
-class pidController {
+class PIDController {
  public:
-  // Variabler
-  double kp;         // P-ledd
-  double ki;         // I-ledd
-  double kd;         // D-ledd
-  double reference;  // Referanseverdi
-  double voltage;    // Utgang
+  double kp;
+  double ki;
+  double kd;
+  double reference;
 
-  pidController(double kp_val, double ki_val, double kd_val) {
+  PIDController(double kp_val, double ki_val, double kd_val) {
     kp = kp_val;
     ki = ki_val;
     kd = kd_val;
     reference = 0.0;
     voltage = 0.0;
     previousError = 0.0;
-    sumError = 0.0;
+    integral = 0.0;
   }
-  // Henter spenning
+
   double getVoltage() { return voltage; }
 
-  // Oppdaterer voltage
   void update(double currentMeasurement) {
-    double error = reference - currentMeasurement;                 // Beregner feil
-    sumError += error;                                             // Sum av tidligere feil
-    double derivative = error - previousError;                     // Endring i feil
-    voltage = (kp * error) + (ki * sumError) + (kd * derivative);  // PID-regulator
-    previousError = error;                                         // Lag ny forrige feil
+    double error = reference - currentMeasurement;
+    integral += error;
+    double derivative = error - previousError;
+    voltage = (kp * error) + (ki * integral) + (kd * derivative);
+    previousError = error;
   }
 
  private:
-  double previousError;  // Forrige feil (D)
-  double sumError;       // Sum av feil (I)
+  double previousError;
+  double integral;
+  double voltage;
 };
 
 class PIDControllerNode : public rclcpp::Node {
  public:
   PIDControllerNode() : Node("qube_controller_node"), pid_(5.0, 0.001, 0.5) {
-    // Publisher som sender utgangsignal fra pid = voltage
+
     publish_voltage_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("/velocity_controller/commands", 10);
 
-    // Callback-funksjon som lytter på den innkommende målingen og oppdaterer PID-kontrolleren
     auto measurement_listener = [this](sensor_msgs::msg::JointState::UniquePtr msg) -> void {
       double currentMeasurement = msg->position[0];
       pid_.update(currentMeasurement);
@@ -63,28 +100,22 @@ class PIDControllerNode : public rclcpp::Node {
       this->publish_voltage_->publish(message_voltage);
     };
 
-    // Subscriber som lytter på målt vinkel (angle)
     measured_angle_ = this->create_subscription<sensor_msgs::msg::JointState>("joint_states", 10, measurement_listener);
 
-    // Deklarer parameter
     this->declare_parameter("kp", 5.0);
     this->declare_parameter("ki", 0.001);
     this->declare_parameter("kd", 0.5);
     this->declare_parameter("ref", 0.0);
-
-    // Linker parameter og variabler
     this->get_parameter("kp", kp_);
     this->get_parameter("ki", ki_);
     this->get_parameter("kd", kd_);
     this->get_parameter("ref", ref_);
 
-    // Setter variabler til verdier fra PID-kontroller
     pid_.kp = kp_;
     pid_.ki = ki_;
     pid_.kd = kd_;
     pid_.reference = ref_;
 
-    // Fortell noden at parameterne er endret
     parameter_callback = this->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter> &parameters) {
       for (const auto &param : parameters) {
         if (param.get_name() == "kp") {
@@ -109,10 +140,10 @@ class PIDControllerNode : public rclcpp::Node {
   }
 
  private:
-  pidController pid_;  // Instans av PID-kontrolleren
+  PIDController pid_;
   rclcpp::TimerBase::SharedPtr timer_;
-  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publish_voltage_;    // Publisher for voltage
-  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr measured_angle_;  // Subscriber for measured angle
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publish_voltage_;
+  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr measured_angle_;
   double kp_;
   double ki_;
   double kd_;

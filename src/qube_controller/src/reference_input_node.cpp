@@ -1,3 +1,12 @@
+/**
+ * @file reference_input_node.cpp
+ * @brief This file contains the main function for the reference input node in a ROS2 system.
+ *
+ * The node initializes the ROS2 client, prompts the user for a new reference value, and sends this value
+ * to the "qube_controller_node/set_reference" service. It waits for the service to be available and handles
+ * the response accordingly.
+ */
+
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
