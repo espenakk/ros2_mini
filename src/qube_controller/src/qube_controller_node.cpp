@@ -44,10 +44,9 @@
 
 #include "qube_controller_msgs/srv/set_reference.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/float64.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
+#include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
-
 
 using namespace std::chrono_literals;
 
@@ -75,6 +74,12 @@ class PIDController {
     integral += error;
     double derivative = error - previousError;
     voltage = (kp * error) + (ki * integral) + (kd * derivative);
+    if (voltage > 100) {
+      voltage = 100;
+    }
+    if (voltage < 0) {
+      voltage = 0;
+    }
     previousError = error;
   }
 
@@ -87,7 +92,6 @@ class PIDController {
 class PIDControllerNode : public rclcpp::Node {
  public:
   PIDControllerNode() : Node("qube_controller_node"), pid_(5.0, 0.001, 0.5) {
-
     publish_voltage_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("/velocity_controller/commands", 10);
 
     auto measurement_listener = [this](sensor_msgs::msg::JointState::UniquePtr msg) -> void {
