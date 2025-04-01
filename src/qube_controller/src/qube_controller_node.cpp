@@ -77,8 +77,8 @@ class PIDController {
     if (voltage > 100) {
       voltage = 100;
     }
-    if (voltage < 0) {
-      voltage = 0;
+    if (voltage < -100) {
+      voltage = -100;
     }
     previousError = error;
   }
