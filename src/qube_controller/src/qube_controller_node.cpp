@@ -74,11 +74,11 @@ class PIDController {
     integral += error;
     double derivative = error - previousError;
     voltage = (kp * error) + (ki * integral) + (kd * derivative);
-    if (voltage > 100) {
-      voltage = 100;
+    if (voltage > 200) {
+      voltage = 200;
     }
-    if (voltage < -100) {
-      voltage = -100;
+    if (voltage < -200) {
+      voltage = -200;
     }
     previousError = error;
   }
@@ -91,7 +91,7 @@ class PIDController {
 
 class PIDControllerNode : public rclcpp::Node {
  public:
-  PIDControllerNode() : Node("qube_controller_node"), pid_(5.0, 0.001, 0.5) {
+  PIDControllerNode() : Node("qube_controller_node"), pid_(40.0, 0, 80.0) {
     publish_voltage_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("/velocity_controller/commands", 10);
 
     auto measurement_listener = [this](sensor_msgs::msg::JointState::UniquePtr msg) -> void {
@@ -106,9 +106,9 @@ class PIDControllerNode : public rclcpp::Node {
 
     measured_angle_ = this->create_subscription<sensor_msgs::msg::JointState>("joint_states", 10, measurement_listener);
 
-    this->declare_parameter("kp", 5.0);
-    this->declare_parameter("ki", 0.001);
-    this->declare_parameter("kd", 0.5);
+    this->declare_parameter("kp", 40.0);
+    this->declare_parameter("ki", 0.0);
+    this->declare_parameter("kd", 80.0);
     this->declare_parameter("ref", 0.0);
     this->get_parameter("kp", kp_);
     this->get_parameter("ki", ki_);
