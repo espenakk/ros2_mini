@@ -3,7 +3,7 @@
  * @brief A ROS2 node that implements a PID controller for controlling a system.
  *
  * This node subscribes to joint state measurements, applies a PID control algorithm,
- * and publishes control commands (voltages) to a specified topic. The PID gains and
+ * and publishes control commands (outputs) to a specified topic. The PID gains and
  * reference value can be dynamically updated via ROS2 parameters.
  *
  * @details
@@ -18,7 +18,7 @@
  * @param ref Reference value for the PID controller (default: 0.0).
  *
  * @publisher
- * - /velocity_controller/commands (std_msgs::msg::Float64MultiArray): Publishes the computed control voltage.
+ * - /velocity_controller/commands (std_msgs::msg::Float64MultiArray): Publishes the computed control output.
  *
  * @subscription
  * - joint_states (sensor_msgs::msg::JointState): Subscribes to the joint state measurements.
@@ -46,23 +46,23 @@ class PIDController {
     ki = ki_val;
     kd = kd_val;
     reference = 0.0;
-    voltage = 0.0;
+    output = 0.0;
     previousError = 0.0;
     integral = 0.0;
   }
 
-  double getVoltage() { return voltage; }
+  double getOutput() { return output; }
 
-  void update(double currentMeasurement) {
-    double error = reference - currentMeasurement;
+  void update(double measured_angle) {
+    double error = reference - measured_angle;
     integral += error;
     double derivative = error - previousError;
-    voltage = (kp * error) + (ki * integral) + (kd * derivative);
-    if (voltage > 200) {
-      voltage = 200;
+    output = (kp * error) + (ki * integral) + (kd * derivative);
+    if (output > 200) {
+      output = 200;
     }
-    if (voltage < -200) {
-      voltage = -200;
+    if (output < -200) {
+      output = -200;
     }
     previousError = error;
   }
@@ -70,24 +70,24 @@ class PIDController {
  private:
   double previousError;
   double integral;
-  double voltage;
+  double output;
 };
 
 class PIDControllerNode : public rclcpp::Node {
  public:
   PIDControllerNode() : Node("qube_controller_node"), pid_(0, 0, 0) {
-    publish_voltage_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("/velocity_controller/commands", 10);
+    publish_output_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("/velocity_controller/commands", 10);
 
-    auto measurement_listener = [this](sensor_msgs::msg::JointState::UniquePtr msg) -> void {
-      double currentMeasurement = msg->position[0];
-      pid_.update(currentMeasurement);
+    auto joint_state_listener = [this](sensor_msgs::msg::JointState::UniquePtr msg) -> void {
+      double measured_angle = msg->position[0];
+      pid_.update(measured_angle);
 
-      auto message_voltage = std_msgs::msg::Float64MultiArray();
-      message_voltage.data.push_back(pid_.getVoltage());
-      this->publish_voltage_->publish(message_voltage);
+      auto message_output = std_msgs::msg::Float64MultiArray();
+      message_output.data.push_back(pid_.getOutput());
+      this->publish_output_->publish(message_output);
     };
 
-    measured_angle_ = this->create_subscription<sensor_msgs::msg::JointState>("joint_states", 10, measurement_listener);
+    current_joint_state_ = this->create_subscription<sensor_msgs::msg::JointState>("joint_states", 10, joint_state_listener);
 
     this->declare_parameter("kp", 4.0);
     this->declare_parameter("ki", 0.0);
@@ -119,8 +119,8 @@ class PIDControllerNode : public rclcpp::Node {
  private:
   PIDController pid_;
   rclcpp::TimerBase::SharedPtr timer_;
-  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publish_voltage_;
-  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr measured_angle_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publish_output_;
+  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr current_joint_state_;
   double kp_;
   double ki_;
   double kd_;
