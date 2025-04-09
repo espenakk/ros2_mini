@@ -56,24 +56,65 @@ This package is designed to bring up the Qube robot in a ROS 2 environment. It i
 - ROS 2 installation
 - Dependencies: rclcpp, std_msgs, sensor_msgs, qube_controller_msgs, xacro, robot_state_publisher, rviz2, joint_state_publisher_gui
 
+### Cloning
+To ensure all submodules get cloned use the following command to clone the repo.
+```bash
+git clone --recurse-submodules https://github.com/espenakk/ros2_mini.git
+```
+
+To install the required dependencies, run:
+```bash
+sudo apt update && sudo apt upgrade -y && sudo apt install ros-jazzy-rclcpp ros-jazzy-std-msgs ros-jazzy-sensor-msgs ros-jazzy-xacro ros-jazzy-robot-state-publisher ros-jazzy-rviz2 ros-jazzy-joint-state-publisher-gui -y
+```
+
 ### Build
 From the workspace root, run:
-```
+```bash
 colcon build
 ```
 
 ### Source
 From the workspace root, run:
-```
+```bash
 source install/local_setup.bash
 ```
 
 ### Run
 To bring up the entire Qube system, use the following command:
-```
+```bash
 ros2 launch qube_bringup bringup.launch.py
 ```
 
-## License
+### Launch File Arguments
+The `bringup.launch.py` file supports the following arguments:
+- `baud_rate`: Baud rate for communication with the Qube device (default: `115200`).
+- `device`: Path to the device (default: `/dev/ttyUSB0`).
+- `simulation`: Sets the system in simulation mode if `true` (default: `false`).
 
-This project is licensed under the MIT License.
+Example usage with custom arguments:
+```bash
+ros2 launch qube_bringup bringup.launch.py baud_rate:=9600 device:=/dev/ttyUSB1 simulation:=true
+```
+
+### Changing Qube Controller Parameters
+The Qube controller node allows dynamic parameter updates. Use the following commands to change the PID parameters or the reference value:
+
+1. Update the proportional gain (`kp`):
+   ```bash
+   ros2 param set /qube_controller kp 10.0
+   ```
+
+2. Update the integral gain (`ki`):
+   ```bash
+   ros2 param set /qube_controller ki 0.001
+   ```
+
+3. Update the derivative gain (`kd`):
+   ```bash
+   ros2 param set /qube_controller kd 20.0
+   ```
+
+4. Update the reference value (`ref`):
+   ```bash
+   ros2 param set /qube_controller ref 1.57
+   ```
