@@ -3,7 +3,7 @@
 ## Overview
 The `controlled_qube` package is designed to bring up the Qube robot in a ROS 2 environment. It includes launch files, URDF descriptions, and configurations necessary to start and visualize the Qube robot.
 
-## Controlled Qube
+## Controlled qube urdf
 
 This URDF file is used to describe the robot model for the "qube" robot. It includes necessary macros and configurations for the robot's description and control.
 
@@ -26,30 +26,19 @@ This URDF file is used to describe the robot model for the "qube" robot. It incl
   - `device`: Device file for the serial connection.
   - `simulation`: Simulation mode flag.
 
-## Features
-- Launch configuration for the Qube robot
-- URDF description for the Qube robot
-- Integration with `qube_driver` and `qube_controller` packages
-- RViz configuration for visualizing the robot
-
-## Usage
+## Run
 To launch the Qube robot, use the following command:
 ```sh
 ros2 launch controlled_qube bringup.launch.py
 ```
 
-## Launch Arguments
-- `baud_rate`: Baud rate for communication with the Qube device (default: '115200').
-- `device`: Path to the device (default: '/dev/ttyUSB0').
-- `simulation`: Sets the system in simulation mode if TRUE (default: 'false').
+### Launch File Arguments
+The `bringup.launch.py` file supports the following arguments:
+- `baud_rate`: Baud rate for communication with the Qube device (default: `115200`).
+- `device`: Path to the device (default: `/dev/ttyUSB0`).
+- `simulation`: Sets the system in simulation mode if `true` (default: `false`).
 
-## Nodes
-- `robot_state_publisher`: Publishes the robot state using the URDF description.
-- `rviz`: Launches RViz with a specified configuration file.
-- `qube_controller`: Node for controlling the Qube device.
-
-## Included Launch Files
-- `qube_driver_launch`: Includes the launch file for the `qube_driver` package.
-
-## License
-This project is licensed under the MIT License.
+Example usage with custom arguments:
+```bash
+ros2 launch qube_bringup bringup.launch.py baud_rate:=9600 device:=/dev/ttyUSB1 simulation:=true
+```

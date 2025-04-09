@@ -2,21 +2,6 @@
 
 This ROS 2 package describes the "qube" robot model using Xacro and URDF files. It includes macros to define a compact model consisting of a base, stator, rotor, and an angle indicator.
 
-## Package Structure
-
-- **urdf/**  
-  Contains the Xacro files:
-  - `qube.urdf.xacro`: Main URDF file that includes the macro.
-  - `qube.macro.xacro`: Defines the `qube` macro with configurable parameters.
-
-- **launch/**  
-  Launch file to view the robot in RViz:
-  - `view_qube.launch.py`
-
-- **config/**  
-  RViz configuration file:
-  - `rviz_config.rviz`
-
 ## Qube Macro
 
 This file defines a Xacro macro for a simple robot model with a base, stator, rotor, and angle link. The macro is parameterized with a prefix to allow for multiple instances with unique names.
@@ -65,31 +50,9 @@ This URDF file describes the robot model for "qube". It uses the xacro (XML Macr
     - `<origin xyz="0 0 0" rpy="0 0 0"/>`: Specifies the origin of the joint in terms of position (xyz) and orientation (rpy).
 - `<xacro:qube prefix="">`: Invokes the `qube` macro defined in the included xacro file, with an empty prefix.
 
-## Dependencies
+## Run
 
-- ROS 2 (tested with Foxy and later distributions)
-- xacro
-- robot_state_publisher
-- rviz2
-- joint_state_publisher_gui
-
-## Build and Run
-
-1. Build the workspace:
-   ```
-   colcon build --packages-select qube_description
-   ```
-
-2. Source the setup file:
-   ```
-   source install/local_setup.bash
-   ```
-
-3. Launch the visualization:
-   ```
-   ros2 launch qube_description view_qube.launch.py
-   ```
-
-## License
-
-This package is released under the MIT License.
+Launch the visualization:
+```
+ros2 launch qube_description view_qube.launch.py
+```
