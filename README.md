@@ -68,7 +68,7 @@ This package is designed to bring up the Qube robot in a ROS 2 environment. It i
 - ROS 2 installation (Jazzy Jalisco)  
   Follow the [ROS 2 Jazzy Jalisco installation guide](https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debs.html).
 - Required dependencies:  
-  - `ros2_control`
+  - `ros2_control`, `xacro`, `joint-state-broadcaster` and `velocity-controllers`
 
 ### Cloning the Repository
 To ensure all submodules are cloned, use the following command:
@@ -81,7 +81,7 @@ sudo apt update && sudo apt upgrade -y
 ```
 To install the required dependencies, run:
 ```bash
-sudo apt install ros-jazzy-ros2-control
+sudo apt install ros-jazzy-ros2-control ros-jazzy-xacro ros-jazzy-joint-state-broadcaster ros-jazzy-velocity-controllers
 ```
 
 ### Building the Workspace
