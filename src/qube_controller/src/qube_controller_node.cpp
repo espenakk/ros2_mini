@@ -1,35 +1,27 @@
 /**
  * @class PIDControllerNode
- * @brief A ROS2 node for controlling a system using a PID controller.
+ * @brief A ROS2 node that implements a PID controller for controlling a system.
  *
  * This node subscribes to joint state measurements, applies a PID control algorithm,
- * and publishes the control voltage to a specified topic. It also provides a service
- * to set the reference value for the PID controller.
+ * and publishes control commands (voltages) to a specified topic. The PID gains and
+ * reference value can be dynamically updated via ROS2 parameters.
  *
  * @details
- * The node initializes with default PID parameters (kp, ki, kd) and a reference value.
- * These parameters can be dynamically updated through ROS2 parameter server.
- * The node subscribes to the "joint_states" topic to receive the current angle measurement,
- * computes the control voltage using the PID controller, and publishes the voltage to
- * the "/velocity_controller/commands" topic.
+ * - Subscribes to the "joint_states" topic to receive the current position measurement.
+ * - Publishes control commands to the "/velocity_controller/commands" topic.
+ * - PID gains (kp, ki, kd) and reference value (ref) are configurable via ROS2 parameters.
+ * - Supports dynamic parameter updates using the `add_on_set_parameters_callback` mechanism.
  *
- * The node also provides a service "qube_controller_node/set_reference" to set the reference
- * value for the PID controller. The reference value must be within the range [-π, π].
+ * @param kp Proportional gain of the PID controller (default: 4.0).
+ * @param ki Integral gain of the PID controller (default: 0.0).
+ * @param kd Derivative gain of the PID controller (default: 8.0).
+ * @param ref Reference value for the PID controller (default: 0.0).
  *
- * @param kp_ Proportional gain of the PID controller.
- * @param ki_ Integral gain of the PID controller.
- * @param kd_ Derivative gain of the PID controller.
- * @param ref_ Reference value for the PID controller.
+ * @publisher
+ * - /velocity_controller/commands (std_msgs::msg::Float64MultiArray): Publishes the computed control voltage.
  *
- * @param pid_ Instance of the PID controller.
- * @param timer_ Timer for periodic tasks (not used in this implementation).
- * @param publish_voltage_ Publisher for the control voltage.
- * @param measured_angle_ Subscription for the joint state measurements.
- * @param parameter_callback Callback for dynamic parameter updates.
- *
- * @fn PIDControllerNode()
- * @brief Constructor for the PIDControllerNode class.
- *
+ * @subscription
+ * - joint_states (sensor_msgs::msg::JointState): Subscribes to the joint state measurements.
  */
 
 #include <chrono>
