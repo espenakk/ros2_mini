@@ -26,26 +26,18 @@
  * @param publish_voltage_ Publisher for the control voltage.
  * @param measured_angle_ Subscription for the joint state measurements.
  * @param parameter_callback Callback for dynamic parameter updates.
- * @param service_ Service for setting the reference value.
  *
  * @fn PIDControllerNode()
  * @brief Constructor for the PIDControllerNode class.
  *
- * @fn setReference(const std::shared_ptr<qube_controller_msgs::srv::SetReference::Request> request,
- *                  std::shared_ptr<qube_controller_msgs::srv::SetReference::Response> response)
- * @brief Callback function for the "set_reference" service.
- * @param request The service request containing the new reference value.
- * @param response The service response indicating success or failure.
  */
 
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 
-#include "qube_controller_msgs/srv/set_reference.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
-#include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
 
 using namespace std::chrono_literals;
@@ -91,13 +83,12 @@ class PIDController {
 
 class PIDControllerNode : public rclcpp::Node {
  public:
-  PIDControllerNode() : Node("qube_controller_node"), pid_(40.0, 0, 80.0) {
+  PIDControllerNode() : Node("qube_controller_node"), pid_(0, 0, 0) {
     publish_voltage_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("/velocity_controller/commands", 10);
 
     auto measurement_listener = [this](sensor_msgs::msg::JointState::UniquePtr msg) -> void {
       double currentMeasurement = msg->position[0];
       pid_.update(currentMeasurement);
-      // RCLCPP_INFO(this->get_logger(), "I recievied this angle: angle='%f'", currentMeasurement * 180 / 3.1415);
 
       auto message_voltage = std_msgs::msg::Float64MultiArray();
       message_voltage.data.push_back(pid_.getVoltage());
@@ -106,19 +97,14 @@ class PIDControllerNode : public rclcpp::Node {
 
     measured_angle_ = this->create_subscription<sensor_msgs::msg::JointState>("joint_states", 10, measurement_listener);
 
-    this->declare_parameter("kp", 40.0);
+    this->declare_parameter("kp", 4.0);
     this->declare_parameter("ki", 0.0);
-    this->declare_parameter("kd", 80.0);
+    this->declare_parameter("kd", 8.0);
     this->declare_parameter("ref", 0.0);
-    this->get_parameter("kp", kp_);
-    this->get_parameter("ki", ki_);
-    this->get_parameter("kd", kd_);
-    this->get_parameter("ref", ref_);
-
-    pid_.kp = kp_;
-    pid_.ki = ki_;
-    pid_.kd = kd_;
-    pid_.reference = ref_;
+    this->get_parameter("kp", pid_.kp);
+    this->get_parameter("ki", pid_.ki);
+    this->get_parameter("kd", pid_.kd);
+    this->get_parameter("ref", pid_.reference);
 
     parameter_callback = this->add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter> &parameters) {
       for (const auto &param : parameters) {
@@ -136,11 +122,6 @@ class PIDControllerNode : public rclcpp::Node {
       result.set__successful(true);
       return result;
     });
-    // Create service for setting reference
-    service_ = this->create_service<qube_controller_msgs::srv::SetReference>(
-        "qube_controller_node/set_reference",
-        std::bind(&PIDControllerNode::setReference, this, std::placeholders::_1, std::placeholders::_2));
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Ready to set reference");
   }
 
  private:
@@ -153,20 +134,6 @@ class PIDControllerNode : public rclcpp::Node {
   double kd_;
   double ref_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameter_callback;
-
-  // SetReference service callback
-  void setReference(const std::shared_ptr<qube_controller_msgs::srv::SetReference::Request> request,
-                    std::shared_ptr<qube_controller_msgs::srv::SetReference::Response> response) {
-    if ((-M_PI) < (request->request.data) && (request->request.data) < (M_PI)) {
-      pid_.reference = request->request.data;
-      response->success.data = true;
-    } else
-      response->success.data = false;
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Incoming request: [%f]", request->request.data);
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "sending back response: [%d]", response->success.data);
-  }
-  // Service for setting reference
-  rclcpp::Service<qube_controller_msgs::srv::SetReference>::SharedPtr service_;
 };
 
 int main(int argc, char **argv) {

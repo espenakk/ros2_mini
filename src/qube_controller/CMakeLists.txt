@@ -9,13 +9,9 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(qube_controller_msgs REQUIRED)
 
 add_executable(qube_controller_node src/qube_controller_node.cpp)
-ament_target_dependencies(qube_controller_node rclcpp std_msgs sensor_msgs qube_controller_msgs)
-
-add_executable(reference_input_node src/reference_input_node.cpp)
-ament_target_dependencies(reference_input_node rclcpp std_msgs qube_controller_msgs)
+ament_target_dependencies(qube_controller_node rclcpp std_msgs sensor_msgs)
 
 target_include_directories(qube_controller_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -24,14 +20,8 @@ target_include_directories(qube_controller_node PUBLIC
   ${pid_controller_msgs_INCLUDE_DIRS})
 target_compile_features(qube_controller_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 
-target_include_directories(reference_input_node PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-target_compile_features(reference_input_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-
 install(TARGETS 
   qube_controller_node
-  reference_input_node
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
